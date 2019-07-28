@@ -30,6 +30,9 @@ gem_group :development do
 end
 bundle_install
 run "rails g annotate:install"
+# markdown設定にする
+gsub_file "lib/tasks/auto_annotate_models.rake", /^(\s*)'format_markdown'([^'^"]*)["']false["'].*$/, "\\1'format_markdown'\\2'true',"
+
 git_commit "add annotate gem", with_rubocop: false
 
 # rubocop
