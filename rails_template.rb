@@ -14,20 +14,32 @@ def bundle_install
   end
 end
 
+# Windowsで動かすことはなさそう
+gsub_file 'Gemfile', 'gem "tzinfo-data", platforms: [:mingw, :mswin, :x64_mingw, :jruby]', 'gem "tzinfo-data"'
+
 remove_file "Gemfile.lock"
 bundle_install
 git_commit "rails new", with_rubocop: false
 
+# annotate
+gem_group :development do
+  gem "annotate"
+end
+bundle_install
+run "rails g annotate:install"
+git_commit "add annotate gem", with_rubocop: false
+
 # rubocop
 gem_group :development do
   gem "rubocop"
-  gem "onkcop"
+  gem "rubocop-rails"
 end
 bundle_install
+run "curl -o .rubocop.yml -L https://gist.githubusercontent.com/daaaaaai/5c505e8856a78b913ed551077105323f/raw/50536954c8e0c2fd5efec341538afd0450ec9450/.rubocop.yml"
+
 git_commit "add rubocop gem", with_rubocop: false
 
 Bundler.with_clean_env do
-  run "bundle exec onkcop init"
   run "bundle exec rubocop -a"
 end
 git_commit "rubocop -a", with_rubocop: false
@@ -56,12 +68,6 @@ end
 bundle_install
 git_commit "add pry gems"
 
-# add slim-rails, stylus
-gem "stylus"
-gem "slim-rails"
-bundle_install
-git_commit "add slim-rails and stylus gem"
-
 # add unicorn
 gem "unicorn"
 bundle_install
@@ -71,30 +77,18 @@ listen 3000, tcp_nopush: true
 EOF
 git_commit "add unicorn gem"
 
-# rspec
+# add test tool
 gem_group :test do
-  gem "rspec-rails", group: :development
+  gem 'minitest-reporters'
+  gem 'mini_backtrace'
+  gem 'guard-minitest'
+  gem 'rails-controller-testing'
+  gem 'timecop'
 end
 bundle_install
-git_commit "add rspec-rails gem"
-generate "rspec:install"
-git_commit "rails g rspec:install"
+git_commit "add test gem"
 
-# guard
-gem_group :test do
-  gem "guard-rspec", group: :development
-end
-bundle_install
-Bundler.with_clean_env do
-  run "bundle exec guard init rspec"
-end
-git_commit "add guard-rspec gem"
-
-# Use database with port
-gsub_file "config/database.yml", /localhost/, "127.0.0.1"
-git_commit "Use database with port"
-
-# scaffold
+# sample code scaffold
 generate :scaffold, "user name birthday:datetime"
 rake "db:drop"
 rake "db:create"
@@ -106,14 +100,14 @@ git_commit "rails g scaffold user name birthday:datetime"
 generate :scaffold, "user_profile user:references gender:integer"
 rake "db:migrate"
 inject_into_class "app/models/user.rb", "User", <<EOF
-  has_one :user_profile
+  has_one :user_profile, dependent: :destroy
 EOF
 git_commit "scaffold user_profile with has_one association"
 # has_many
 generate :scaffold, "article user:references title body:text published_at:datetime"
 rake "db:migrate"
 inject_into_class "app/models/user.rb", "User", <<EOF
-  has_many :articles
+  has_many :articles, dependent: false
 EOF
 git_commit "scaffold article with has_many association"
 
@@ -145,11 +139,11 @@ generate :scaffold, "topic title"
 generate :scaffold, "linker topic:references article:references"
 rake "db:migrate"
 inject_into_class "app/models/article.rb", "Article", <<EOF
-  has_many :linkers
+  has_many :linkers, dependent: :destroy
 EOF
 inject_into_class "app/models/topic.rb", "Topic", <<EOF
-  has_many :linkers
-  has_many :articles, through: :linkers
+  has_many :linkers, dependent: :destroy
+  has_many :articles, through: :linkers, dependent: :destroy
 EOF
 git_commit "scaffold topics, linkers"
 
