@@ -14,8 +14,11 @@ def bundle_install
   end
 end
 
-# Windowsで動かすことはなさそう
-gsub_file 'Gemfile', 'gem "tzinfo-data", platforms: [:mingw, :mswin, :x64_mingw, :jruby]', 'gem "tzinfo-data"'
+# Windowsで動かすことはない
+gsub_file "Gemfile", /^\s*gem\s+["']tzinfo-data["'].*$/, 'gem "tzinfo-data"'
+
+# deprecated
+gsub_file "Gemfile", /^(\s*)gem\s+["']chromedriver-helper["'].*$/, "\\1gem \"webdrivers\""
 
 remove_file "Gemfile.lock"
 bundle_install
@@ -59,11 +62,12 @@ end
 git_commit "setup pre-commit"
 
 # add pry
-gem_group :development do
+gem_group :development, :test do
   gem "pry"
   gem "pry-byebug"
   gem "pry-doc"
   gem "pry-rails"
+  gem 'minitest'
 end
 bundle_install
 git_commit "add pry gems"
@@ -107,7 +111,7 @@ git_commit "scaffold user_profile with has_one association"
 generate :scaffold, "article user:references title body:text published_at:datetime"
 rake "db:migrate"
 inject_into_class "app/models/user.rb", "User", <<EOF
-  has_many :articles, dependent: false
+  has_many :articles, dependent: :destroy
 EOF
 git_commit "scaffold article with has_many association"
 
